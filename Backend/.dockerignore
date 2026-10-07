@@ -1,0 +1,10 @@
+.dotnet
+.dotnet-home
+.nuget
+.dotnet-install.ps1
+**/bin
+**/obj
+.git
+TestResults
+artifacts
+node_modules

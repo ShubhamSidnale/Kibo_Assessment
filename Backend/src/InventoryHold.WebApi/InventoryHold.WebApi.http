@@ -1,0 +1,28 @@
+@baseUrl = http://localhost:8080
+
+### Inventory
+GET {{baseUrl}}/api/inventory
+
+### Place a hold (copy its id into holdId below)
+POST {{baseUrl}}/api/holds
+Content-Type: application/json
+
+{
+  "items": [
+    { "productId": "keyboard", "quantity": 2 },
+    { "productId": "mouse", "quantity": 1 }
+  ]
+}
+
+### Active holds
+GET {{baseUrl}}/api/holds?status=Active&limit=50
+
+### Fetch one hold
+@holdId = replace-with-created-id
+GET {{baseUrl}}/api/holds/{{holdId}}
+
+### Release
+DELETE {{baseUrl}}/api/holds/{{holdId}}
+
+### Readiness
+GET {{baseUrl}}/health/ready

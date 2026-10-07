@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+.dotnet/
+.dotnet-home/
+.nuget/
+.dotnet-install.ps1
+.env
+.vs/
+node_modules/
+dist/
+TestResults/
+artifacts/
+*.user

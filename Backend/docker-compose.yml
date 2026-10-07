@@ -1,0 +1,77 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
+      Mongo__Database: inventory_hold
+      Redis__ConnectionString: redis:6379,abortConnect=false
+      Rabbit__ConnectionString: amqp://${RABBIT_USER:-assessment}:${RABBIT_PASSWORD:-assessment}@rabbitmq:5672
+      Hold__DurationMinutes: ${HOLD_DURATION_MINUTES:-15}
+      Cors__Origins__0: http://localhost:5173
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  mongo-init:
+    image: mongo:8.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: ["mongosh", "--host", "mongo:27017", "--quiet", "--eval"]
+    command:
+      - >-
+        try { rs.status(); } catch (e) {
+          if (e.code !== 94) throw e;
+          rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]});
+        }
+        let ready = false;
+        for (let i = 0; i < 60; i++) {
+          if (db.hello().isWritablePrimary) { ready = true; break; }
+          sleep(1000);
+        }
+        if (!ready) quit(1);
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-assessment}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-assessment}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+volumes:
+  mongo-data:
+  rabbit-data:
